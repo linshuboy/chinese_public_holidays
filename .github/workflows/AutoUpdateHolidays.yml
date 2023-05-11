@@ -1,0 +1,20 @@
+name: Auto Update Holidays
+on:
+  schedule:
+    - cron: '0 * 11,12,1 * *'
+  workflow_dispatch:
+jobs:
+  update_holidays:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: 运行python脚本
+        run: |
+          pip install -r requirements.txt
+          python update_holidays.py --openai-api-key=${{ secrets.OPENAI_API_KEY }} --api2d-api-key=${{ secrets.API2D_API_KEY }}
+          git config --global user.email "linshuboy@qq.com"
+          git config --global user.name "robot"
+          output=$(git status)
+          if [[ $output == *"Untracked files"* ]]; then
+            git add . && git commit -m "update holidays" && git push
+          fi
