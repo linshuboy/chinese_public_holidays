@@ -34,27 +34,60 @@ def main(argv):
             all_holidays = json.load(f)
     except:
         all_holidays = {}
-    html = requests.get(
-        'http://sousuo.gov.cn/s.htm?'
-        't=paper&advance=false&n=100&timetype=timeqb&mintime=&maxtime='
-        '&sort=pubtime&q=%E9%83%A8%E5%88%86%E8%8A%82%E5%81%87%E6%97%A5%E5%AE%89%E6%8E%92%E7%9A%84%E9%80%9A%E7%9F%A5')
-    html.encoding = 'utf-8'
-    soup = BeautifulSoup(html.text, 'html.parser')
-    all_notifications = soup.find_all('div', class_='result')[0].find_all('a')
+    html = requests.post(
+        'https://sousuoht.www.gov.cn/athena/forward/2B22E8E39E850E17F95A016A74FCB6B673336FA8B6FEC0E2955907EF9AEE06BE',
+        json={
+            "code": "17da70961a7",
+            "historySearchWords": [
+                "部分节假日安排的通知1",
+                "部分节假日安排的通知",
+                "1"
+            ],
+            "dataTypeId": "107",
+            "orderBy": "time",
+            "searchBy": "title",
+            "appendixType": "",
+            "granularity": "ALL",
+            "trackTotalHits": True,
+            "beginDateTime": "",
+            "endDateTime": "",
+            "isSearchForced": 0,
+            "filters": [],
+            "pageNo": 1,
+            "pageSize": 10,
+            "customFilter": {
+                "operator": "and",
+                "properties": []
+            },
+            "searchWord": "部分节假日安排的通知"
+        },
+        headers={
+            'Athenaappkey': 'QA7TduL373qo6unVp%2BDiDMmD2HnkirIy%2FkCd6rsGUztwnE9pbHiJFsfzE5W00RIPvZU6YOtlRY89PNqQui3DmtXpWC1%2FWUSEk%2Fxhih1vLpMUvIgx1bwe6LqrHMVprdgqKFmCw55sH%2FfTlWcQLGG7CvCZhaRXPZYillsI%2B8GlOSM%3D',
+            'Athenaappname': '%E5%9B%BD%E7%BD%91%E6%90%9C%E7%B4%A2',
+        }
+    )
+    # print(html.text)
+    all_notifications = json.loads(html.text)['result']['data']['middle']['list']
+    # print(all_notifications)
     for notification in all_notifications:
         year_datas = {}
-        year = re.findall(r'\d{4}', notification.text)
+        year = re.findall(r'\d{4}', notification['title_no_tag'])
         if year:
             # 如果年份不在json文件中,则添加
             if year[0] in holidays:
                 continue
-        notification_html = requests.get(notification.get('href'))
+        # print(notification['url'])
+        notification_html = requests.get(notification['url'])
         notification_html.encoding = 'utf-8'
         notification_soup = BeautifulSoup(notification_html.text, 'html.parser')
-        content = notification_soup.find('td', class_='b12c').text
-        # print(content)
+        ps = notification_soup.find('div', class_='TRS_UEDITOR').find_all('p')
+        messages = []
+        for p in ps:
+            # 如果 r'([一二三四五六七八九]、.*?)[\r\n　]' 匹配到了,则说明是新的一行
+            if re.findall(r'([一二三四五六七八九]、.*?)', p.text):
+                messages.append(p.text)
         # 使用正则表达式获取每一行
-        messages = re.findall(r'([一二三四五六七八九]、.*?)[\r\n　]', content)
+        # messages = re.findall(r'([一二三四五六七八九]、.*?)[\r\n　]', content)
         show_year = year[0]
         last_year = 0
         last_month = 0
@@ -125,9 +158,9 @@ def main(argv):
                             '{}{}{}'.format(str(date_1.year).zfill(4), str(date_1.month).zfill(2),
                                             str(date_1.day).zfill(2))] = {}
                         all_holidays['{}{}{}'.format(str(date_1.year).zfill(4), str(date_1.month).zfill(2),
-                                                  str(date_1.day).zfill(2))] = {}
+                                                     str(date_1.day).zfill(2))] = {}
                         year_datas['{}{}{}'.format(str(date_1.year).zfill(4), str(date_1.month).zfill(2),
-                                                  str(date_1.day).zfill(2))] = {}
+                                                   str(date_1.day).zfill(2))] = {}
                         last_year = date_1.year
                         last_month = date_1.month
                         if str(date_1.day).zfill(2) == str(day_info_2[0][2]).zfill(2):
@@ -136,6 +169,7 @@ def main(argv):
                                     0] == '':
                                     break
             work_messages = re.findall(r'.*[，。](.*?上班)', message)
+            print(work_messages)
             if len(work_messages) != 0:
                 for work_message in work_messages:
                     work_date = re.findall(
